@@ -1,0 +1,4 @@
+.connectionstring
+*/__pycache__/
+__pycache__/
+.before_update
