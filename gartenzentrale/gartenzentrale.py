@@ -96,7 +96,7 @@ class Gartenlaube:
         self.manual_overwrite(relay=2, value=0)
         self.manual_overwrite(relay=3, value=0)
         self.manual_overwrite(relay=4, value=0)
-0)
+
     def manual_overwrite(self, relay, value, client=None):
         if relay == 1:
             relais = self.relais1
