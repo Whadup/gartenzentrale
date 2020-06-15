@@ -9,7 +9,7 @@ if __name__ == '__main__':
         with open("before_update", "r") as f:
             commit = f.read()
         subprocess.run(
-            "git checkout {}".format(commit)
+            "git checkout {}".format(commit),
             shell=True,
             text=True
         )
