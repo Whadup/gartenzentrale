@@ -281,5 +281,5 @@ def main():
         print ( "Unexpected error from IoTHub", e)
         return
     finally:
-        laube.turn_everything_off()
+        laube.turn_everything_off(
 
