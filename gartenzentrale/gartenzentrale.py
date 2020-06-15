@@ -245,9 +245,9 @@ def main():
         message_listener_thread.daemon = True
         message_listener_thread.start()
 
-        # twin_listener_thread = threading.Thread(target=_thread2, args=(laube,))
-        # twin_listener_thread.daemon = True
-        # twin_listener_thread.start()
+        twin_listener_thread = threading.Thread(target=_thread2, args=(laube,))
+        twin_listener_thread.daemon = True
+        twin_listener_thread.start()
 
         print ( "Starting the IoT Hub Python sample...")
         print(json.dumps(client.get_twin(), indent=4))
