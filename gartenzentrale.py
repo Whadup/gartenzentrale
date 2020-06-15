@@ -6,7 +6,7 @@ if __name__ == '__main__':
     except Exception as error:
         print ( error )
         print("Rolling Back Update")
-        with open("before_update", "r") as f:
+        with open(".before_update", "r") as f:
             commit = f.read()
         subprocess.run(
             "git checkout {}".format(commit),
