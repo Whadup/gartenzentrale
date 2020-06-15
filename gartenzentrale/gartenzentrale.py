@@ -283,11 +283,3 @@ def main():
     finally:
         laube.turn_everything_off()
 
-if __name__ == '__main__':
-    try:
-        main()
-
-    except Exception as error:
-        print ( error )
-        # Do we need to revert to a previous version?
-        sys.exit(1)

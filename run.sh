@@ -2,6 +2,6 @@
 while true
 do
 	echo "(Re-)Starting Garten Server"
-    python3 -m gartenzentrale.gartenzentrale
+    python3 gartenzentrale.py
 	sleep 1
 done
