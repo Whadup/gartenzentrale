@@ -270,9 +270,9 @@ def main():
             message_listener_thread.join(timeout=1)
             if not message_listener_thread.is_alive():
                 sys.exit(1)
-            # twin_listener_thread.join(timeout=1)
-            # if not twin_listener_thread.is_alive():
-            #     sys.exit(1)
+            twin_listener_thread.join(timeout=1)
+            if not twin_listener_thread.is_alive():
+                sys.exit(1)
             # print(twin_listener_thread.is_alive, message_listener_thread.is_alive)
 
     except KeyboardInterrupt:
