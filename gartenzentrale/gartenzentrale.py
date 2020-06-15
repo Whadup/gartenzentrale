@@ -4,6 +4,8 @@ import threading
 import json
 import subprocess
 from azure.iot.device import IoTHubDeviceClient, Message
+from azure.iot.device.exceptions import *
+from azure.iot.device.common.transport_exceptions import ConnectionFailedError as ConnectionFailedError2
 from git import Repo
 from threading import Lock
 # global counters
@@ -75,12 +77,26 @@ class Gartenlaube:
         self.relais4 = Relay("RELAY4")
 
         self.client = client
+
+        twin = self.client.get_twin()
+        print(twin)
+        self.manual_overwrite(relay=1, value=twin["desired"].get("relay1", 0))
+        self.manual_overwrite(relay=2, value=twin["desired"].get("relay2", 0))
+        self.manual_overwrite(relay=3, value=twin["desired"].get("relay3", 0))
+        self.manual_overwrite(relay=4, value=twin["desired"].get("relay4", 0))
+
         self.git = Repo(".")
 
     def in_update(self):
         """check if we are in the update phase"""
         return False
 
+    def turn_everything_off(self):
+        self.manual_overwrite(relay=1, value=0)
+        self.manual_overwrite(relay=2, value=0)
+        self.manual_overwrite(relay=3, value=0)
+        self.manual_overwrite(relay=4, value=0)
+0)
     def manual_overwrite(self, relay, value, client=None):
         if relay == 1:
             relais = self.relais1
@@ -136,7 +152,7 @@ class Gartenlaube:
                 print("pip failed, let's hope for the best")
                 print(pip.stderr)
         self.update_lock.release()
-        if "Already up-to-date." in git_pull_output:
+        if "Already up-to-date." in git_pull_output or "Already up to date." in git_pull_output:
             return
         sys.exit(0)
 
@@ -144,22 +160,30 @@ class Gartenlaube:
         global RECEIVED_MESSAGES
         while True:
             try:
-                message = self.client.receive_message("input1")   # blocking call
-                RECEIVED_MESSAGES += 1
-                print("Message received on input1")
-                print( "    Data: <<{}>>".format(message.data) )
-                print( "    Properties: {}".format(message.custom_properties))
-                print( "    Total calls received: {}".format(RECEIVED_MESSAGES))
-
-                try:
-                    payload = json.loads(message.data)
-                    if payload.get("command", "") == "update":
-                        self.update()
-                except json.JSONDecodeError as e:
-                    print("No valid JSON in Message")
-            except Exception as e:
-                print(e)
+                message = self.client.receive_message("input1", timeout=5)   # blocking call
+                if not message:
+                    continue
+            except ConnectionFailedError as e:
+                print("connection failed")
                 return
+            except ConnectionFailedError2 as e:
+                return
+            except Exception as e:
+                print(type(e))
+                return
+            RECEIVED_MESSAGES += 1
+            print("Message received on input1")
+            print( "    Data: <<{}>>".format(message.data) )
+            print( "    Properties: {}".format(message.custom_properties))
+            print( "    Total calls received: {}".format(RECEIVED_MESSAGES))
+
+            try:
+                payload = json.loads(message.data)
+                if payload.get("command", "") == "update":
+                    self.update()
+            except json.JSONDecodeError as e:
+                print("No valid JSON in Message")
+
     
     def receive_twin_listener(self):
         # This listener function only triggers for messages sent to "input1".
@@ -167,24 +191,31 @@ class Gartenlaube:
         global RECEIVED_MESSAGES
         while True:
             try:
-                patch = self.client.receive_twin_desired_properties_patch()
-                RECEIVED_MESSAGES += 1
-                print("Patch received")
-                print( "    Data: \n{}".format(json.dumps(patch, indent=4)))
-
-                for key in patch:
-                    if key == "relay1"  :
-                        self.manual_overwrite(relay=1, value=patch[key])
-                    elif key == "relay2":
-                        self.manual_overwrite(relay=2, value=patch[key])
-                    elif key == "relay3":
-                        self.manual_overwrite(relay=3, value=patch[key])
-                    elif key == "relay4":
-                        self.manual_overwrite(relay=4, value=patch[key])
-
-            except Exception as e:
-                print(e)
+                patch = self.client.receive_twin_desired_properties_patch(timeout=5)
+                if not patch:
+                    continue
+            except ConnectionFailedError as e:
+                print("connection failed")
                 return
+            except ConnectionFailedError2 as e:
+                # print(type(e))
+                return
+            except Exception as e:
+                print(type(e), "hilfe")
+                return
+            RECEIVED_MESSAGES += 1
+            print("Patch received")
+            print( "    Data: \n{}".format(json.dumps(patch, indent=4)))
+
+            for key in patch:
+                if key == "relay1"  :
+                    self.manual_overwrite(relay=1, value=patch[key])
+                elif key == "relay2":
+                    self.manual_overwrite(relay=2, value=patch[key])
+                elif key == "relay3":
+                    self.manual_overwrite(relay=3, value=patch[key])
+                elif key == "relay4":
+                    self.manual_overwrite(relay=4, value=patch[key])
 
 def iothub_client_init():
     # Create an IoT Hub client
@@ -203,6 +234,7 @@ def main():
         print ( "IoT Hub Client for Python" )
 
         client = iothub_client_init()
+        # client.connect()
         laube = Gartenlaube(client)
     
         git = Repo(".")
@@ -213,9 +245,9 @@ def main():
         message_listener_thread.daemon = True
         message_listener_thread.start()
 
-        twin_listener_thread = threading.Thread(target=_thread2, args=(laube,))
-        twin_listener_thread.daemon = True
-        twin_listener_thread.start()
+        # twin_listener_thread = threading.Thread(target=_thread2, args=(laube,))
+        # twin_listener_thread.daemon = True
+        # twin_listener_thread.start()
 
         print ( "Starting the IoT Hub Python sample...")
         print(json.dumps(client.get_twin(), indent=4))
@@ -233,15 +265,23 @@ def main():
         print ( "The sample is now waiting for messages and will indefinitely.  Press Ctrl-C to exit. ")
 
 
-        message_listener_thread.join()
-        # while True:
-        #     time.sleep(1000)
+        # 
+        while True:
+            message_listener_thread.join(timeout=1)
+            if not message_listener_thread.is_alive():
+                sys.exit(1)
+            # twin_listener_thread.join(timeout=1)
+            # if not twin_listener_thread.is_alive():
+            #     sys.exit(1)
+            # print(twin_listener_thread.is_alive, message_listener_thread.is_alive)
 
     except KeyboardInterrupt:
         print ( "IoTHubClient sample stopped" )
     except Exception as e:
         print ( "Unexpected error from IoTHub", e)
         return
+    finally:
+        laube.turn_everything_off()
 
 if __name__ == '__main__':
     try:
