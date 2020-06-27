@@ -210,13 +210,31 @@ class Gartenlaube:
             for key in patch:
                 if key == "relay1"  :
                     self.manual_overwrite(relay=1, value=patch[key])
+                    self.client.patch_twin_reported_properties(
+                        {key : patch[key]}
+                    )
                 elif key == "relay2":
                     self.manual_overwrite(relay=2, value=patch[key])
+                    self.client.patch_twin_reported_properties(
+                        {key : patch[key]}
+                    )
                 elif key == "relay3":
                     self.manual_overwrite(relay=3, value=patch[key])
+                    self.client.patch_twin_reported_properties(
+                        {key : patch[key]}
+                    )
                 elif key == "relay4":
                     self.manual_overwrite(relay=4, value=patch[key])
-
+                    self.client.patch_twin_reported_properties(
+                        {key : patch[key]}
+                    )
+    def send_life_report(self):
+        while True:
+            try:
+                patch = self.client.send_message(Message("alive"))
+                time.sleep(60)
+            except:
+                sys.exit(1)
 def iothub_client_init():
     # Create an IoT Hub client
     client = IoTHubDeviceClient.create_from_connection_string(CONNECTION_STRING)
@@ -226,7 +244,8 @@ def _thread1(laube):
     laube.receive_message_listener()
 def _thread2(laube):
     laube.receive_twin_listener()
-
+def _thread3(laube):
+    laube.send_life_report()
 def main():
     
     try:
@@ -248,6 +267,10 @@ def main():
         twin_listener_thread = threading.Thread(target=_thread2, args=(laube,))
         twin_listener_thread.daemon = True
         twin_listener_thread.start()
+
+        # keep_alive_thread = threading.Thread(target=_thread3, args=(laube,))
+        # keep_alive_thread.daemon = True
+        # keep_alive_thread.start()
 
         print ( "Starting the IoT Hub Python sample...")
         print(json.dumps(client.get_twin(), indent=4))
